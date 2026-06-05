@@ -97,6 +97,14 @@
                     <span class="text-xs font-semibold text-slate-500 bg-white px-2.5 py-1 rounded-full shadow-sm">45-60 min</span>
                 </div>
 
+                <!-- Sandbox Warning Banner (Displays when offline/local mode is active) -->
+                <div id="sandbox-warning-banner" class="hidden text-[10px] bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2.5 flex items-start gap-2">
+                    <i class="fa-solid fa-circle-info text-amber-600 mt-0.5"></i>
+                    <div>
+                        <strong>Offline Sandbox Mode Active:</strong> Progress is temporary and will reset if the app is closed or reloaded. Go to the <span class="font-bold cursor-pointer underline text-weight-600 hover:text-weight-700" onclick="toggleView('weight')">Weight tab</span> to connect a cloud database, or use the <strong>Backup</strong> button below to save files.
+                    </div>
+                </div>
+
                 <!-- Exercise List -->
                 <div id="exercise-container" class="space-y-4">
                     <!-- Exercise 1 -->
@@ -324,7 +332,7 @@
 
             <div id="view-weight" class="hidden space-y-6">
                 <!-- Premium Cloud Sync Profile Card -->
-                <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white border border-slate-700 rounded-2xl p-4.5 shadow-md space-y-3.5">
+                <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white border border-slate-700 rounded-2xl p-4 shadow-md space-y-3.5">
                     <div class="flex justify-between items-center pb-2 border-b border-slate-700/60">
                         <h3 class="font-bold text-xs flex items-center gap-1.5 text-primary-400">
                             <i class="fa-solid fa-cloud-arrow-up text-sm"></i>
@@ -342,7 +350,7 @@
                     <div class="space-y-1.5">
                         <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sync Passcode</label>
                         <div class="flex gap-2">
-                            <input type="text" id="passcode-input" placeholder="e.g. strong-leichhardt-1234" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg py-1.5 px-3 text-xs font-mono font-bold text-slate-200 focus:ring-1 focus:ring-primary-500 focus:outline-none">
+                            <input type="text" id="passcode-input" placeholder="e.g. strong-reichhardt-1234" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg py-1.5 px-3 text-xs font-mono font-bold text-slate-200 focus:ring-1 focus:ring-primary-500 focus:outline-none">
                             <button onclick="changePasscode()" class="px-3.5 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-bold transition-all shrink-0">
                                 Link / Load
                             </button>
@@ -356,6 +364,37 @@
                             <button onclick="copyShareLink()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0">
                                 <i class="fa-regular fa-copy"></i> Copy
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- Database Configuration Section (NEW: Setup for GitHub Pages / Self-Hosting) -->
+                    <div class="border-t border-slate-700/60 pt-3 mt-1">
+                        <button onclick="toggleDbConfig()" class="w-full text-left text-[10px] font-bold text-slate-400 hover:text-slate-300 flex justify-between items-center uppercase tracking-wider focus:outline-none">
+                            <span><i class="fa-solid fa-gears mr-1"></i> Database Settings (Self-Host)</span>
+                            <i id="db-config-caret" class="fa-solid fa-chevron-down transition-transform"></i>
+                        </button>
+                        <div id="db-config-panel" class="hidden mt-3 space-y-3 pt-1">
+                            <p class="text-[10px] text-slate-400 leading-normal">
+                                Paste your own free Firebase Configuration JSON to enable automated database storage outside the platform (e.g. on GitHub Pages).
+                            </p>
+                            <div class="space-y-1">
+                                <label class="block text-[9px] font-bold text-slate-400 uppercase">Firebase Config (JSON)</label>
+                                <textarea id="db-config-input" rows="3" placeholder='{ "apiKey": "AIza...", "authDomain": "...", "projectId": "...", ... }' class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-[10px] font-mono text-slate-300 focus:ring-1 focus:ring-primary-500 focus:outline-none"></textarea>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">App ID</label>
+                                    <input type="text" id="db-appid-input" placeholder="my-fitness-app" class="w-full bg-slate-950 border border-slate-700 rounded-lg py-1.5 px-2.5 text-[10px] font-mono text-slate-300 focus:outline-none">
+                                </div>
+                                <div class="flex items-end gap-1.5">
+                                    <button onclick="saveCustomConfig()" class="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all">
+                                        Connect
+                                    </button>
+                                    <button onclick="clearCustomConfig()" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg text-xs transition-all" title="Reset to Sandbox">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -484,20 +523,6 @@
         let currentPasscode = '';
         let unsubscribeDoc = null;
 
-        // Firebase Configuration Safeguard to prevent local crashes on exported files
-        const configAvailable = typeof __firebase_config !== 'undefined' && __firebase_config;
-        if (configAvailable) {
-            try {
-                const firebaseConfig = JSON.parse(__firebase_config);
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            } catch (e) {
-                console.error("Firebase setup error:", e);
-            }
-        }
-
         // Cookie Helpers (Safe from standard localStorage restrictions)
         function setCookie(name, value, days) {
             const date = new Date();
@@ -527,6 +552,51 @@
             return `${adj}-${noun}-${num}`;
         }
 
+        // Firebase Configuration Safeguard to support platform AND self-hosted deployments
+        let firebaseConfig = null;
+        let configAvailable = false;
+
+        // 1. First prioritise injected platform config (if inside platform iframe environment)
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+            try {
+                if (typeof __firebase_config === 'string') {
+                    firebaseConfig = JSON.parse(__firebase_config);
+                } else {
+                    firebaseConfig = __firebase_config;
+                }
+                configAvailable = true;
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            } catch (e) {
+                console.error("Failed to parse injected __firebase_config:", e);
+            }
+        }
+
+        // 2. Fall back to user-configured custom config in cookies (for self-hosting/GitHub Pages)
+        if (!configAvailable) {
+            const customConfigStr = getCookie('custom_firebase_config');
+            if (customConfigStr) {
+                try {
+                    firebaseConfig = JSON.parse(customConfigStr);
+                    configAvailable = true;
+                    appId = getCookie('custom_firebase_appid') || 'custom-app-id';
+                } catch (e) {
+                    console.error("Failed to parse custom firebase config cookie:", e);
+                }
+            }
+        }
+
+        // Attempt initialization
+        if (configAvailable && firebaseConfig) {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            } catch (e) {
+                console.error("Firebase initialization failed:", e);
+                configAvailable = false;
+            }
+        }
+
         // Connect Sync on load
         window.addEventListener('DOMContentLoaded', async () => {
             const today = new Date().toISOString().split('T')[0];
@@ -542,6 +612,12 @@
             // Set up initial displays
             renderHistory();
             renderWeightLog();
+
+            // Handle warning banners if database is disconnected
+            if (!configAvailable) {
+                const warningBanner = document.getElementById('sandbox-warning-banner');
+                if (warningBanner) warningBanner.classList.remove('hidden');
+            }
 
             // Trigger secure authentication workflow
             if (configAvailable && auth) {
@@ -620,6 +696,64 @@
                 console.error("Firestore loading error:", error);
                 document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-exclamation text-rose-500"></i> Sync Error';
             });
+        }
+
+        // Database Configuration Panel Toggle
+        function toggleDbConfig() {
+            const panel = document.getElementById('db-config-panel');
+            const caret = document.getElementById('db-config-caret');
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                caret.classList.add('rotate-180');
+                
+                const currentConfig = getCookie('custom_firebase_config');
+                if (currentConfig) {
+                    document.getElementById('db-config-input').value = currentConfig;
+                }
+                document.getElementById('db-appid-input').value = getCookie('custom_firebase_appid') || 'custom-app-id';
+            } else {
+                panel.classList.add('hidden');
+                caret.classList.remove('rotate-180');
+            }
+        }
+
+        // Save User-provided Configuration (Allows self-hosting databases on GitHub Pages)
+        function saveCustomConfig() {
+            const configStr = document.getElementById('db-config-input').value.trim();
+            const appIdVal = document.getElementById('db-appid-input').value.trim() || 'custom-app-id';
+            
+            if (!configStr) {
+                showToast("Please enter a config JSON!", "fa-triangle-exclamation", true);
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(configStr);
+                if (!parsed.apiKey || !parsed.projectId) {
+                    showToast("Incomplete Firebase config details.", "fa-triangle-exclamation", true);
+                    return;
+                }
+                
+                setCookie('custom_firebase_config', JSON.stringify(parsed), 365);
+                setCookie('custom_firebase_appid', appIdVal, 365);
+                showToast("Database Linked! Reloading app...", "fa-rotate");
+                
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } catch (e) {
+                showToast("Invalid JSON structure.", "fa-triangle-exclamation", true);
+            }
+        }
+
+        // Wipe Config Cookie & revert back to standard sandbox
+        function clearCustomConfig() {
+            setCookie('custom_firebase_config', '', -1);
+            setCookie('custom_firebase_appid', '', -1);
+            showToast("Settings cleared. Reloading...", "fa-trash-can");
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
         }
 
         // Change Profile Action
@@ -745,9 +879,9 @@
                         
                         // Push new dataset to cloud
                         await syncDataToCloud();
-                        showToast("Data Backup Restored Successfully!");
+                        showToast("Backup Restored Successfully!");
                     } else {
-                        showToast("Invalid data structure.", "fa-circle-xmark", true);
+                        showToast("Invalid backup structure.", "fa-circle-xmark", true);
                     }
                 } catch (err) {
                     console.error("Backup import parse error:", err);
@@ -1000,6 +1134,9 @@
         window.triggerImport = triggerImport;
         window.importJSON = importJSON;
         window.exportJSON = exportJSON;
+        window.toggleDbConfig = toggleDbConfig;
+        window.saveCustomConfig = saveCustomConfig;
+        window.clearCustomConfig = clearCustomConfig;
     </script>
 </body>
 </html>
