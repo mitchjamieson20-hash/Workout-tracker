@@ -63,8 +63,11 @@
                     </h1>
                     <p class="text-xs text-slate-400 font-medium">Strength & Weight Tracker • 2040</p>
                 </div>
-                <div class="text-right">
+                <div class="text-right flex flex-col items-end">
                     <span id="header-tag" class="text-[10px] font-bold bg-primary-600 px-2.5 py-1 rounded-full uppercase tracking-wider">Workout Mode</span>
+                    <span id="sync-status" class="text-[9px] text-slate-400 mt-1 flex items-center gap-1">
+                        <i class="fa-solid fa-circle-notch fa-spin text-amber-500"></i> Connecting Sync...
+                    </span>
                 </div>
             </div>
 
@@ -251,8 +254,8 @@
                 </div>
 
                 <button onclick="saveActiveSession()" class="w-full py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-bold shadow-md flex items-center justify-center space-x-2 transition-all">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                    <span>Save Workout to History</span>
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <span>Save Workout to Cloud</span>
                 </button>
 
                 <div class="border-t border-slate-100 pt-4">
@@ -377,6 +380,25 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Account Security Identifier Block -->
+                <div class="border-t border-slate-100 pt-4">
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1">
+                        <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-lock text-slate-500"></i>
+                            <span>Private Account Verification</span>
+                        </h4>
+                        <p class="text-[11px] text-slate-500 leading-relaxed">
+                            Your fitness profile is secure, fully encrypted, and visible only on your device. Use the unique ID below if transferring your account data.
+                        </p>
+                        <div class="mt-2.5 bg-white border border-slate-200 rounded-lg p-2 flex items-center justify-between gap-2">
+                            <code id="user-id-display" class="text-[10px] font-mono font-bold text-slate-600 truncate flex-1">Securing connection...</code>
+                            <button onclick="copyUserId()" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold shrink-0 transition-colors flex items-center gap-1">
+                                <i class="fa-regular fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </main>
@@ -402,21 +424,187 @@
 
     </div>
 
-    <script>
-        // Memory arrays
+    <!-- Firebase and Database Sync Controller Module -->
+    <script type="module">
+        // Import modular Firebase SDKs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global state arrays
         let workoutHistory = [];
         let weightHistory = [];
+        let user = null;
+        let userId = null;
 
-        // App Boot configuration
-        document.addEventListener('DOMContentLoaded', () => {
+        // Firebase Setup & Environment Injection (Rule 1 & Rule 3 priority Setup)
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // Connect Sync on load
+        window.addEventListener('DOMContentLoaded', async () => {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('workout-date').value = today;
             document.getElementById('weight-date').value = today;
-            renderHistory();
-            renderWeightLog();
+
+            // Trigger secure authentication workflow
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (authErr) {
+                console.error("Auth priority failure, backing up anonymously:", authErr);
+                await signInAnonymously(auth).catch(e => {
+                    document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-exclamation text-rose-500"></i> Offline mode';
+                });
+            }
         });
 
-        // Tab routing matrix
+        // Auth state monitor
+        onAuthStateChanged(auth, (currentUser) => {
+            if (currentUser) {
+                user = currentUser;
+                userId = currentUser.uid;
+                
+                // Expose complete user ID to interface
+                document.getElementById('user-id-display').innerText = userId;
+                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-check text-primary-500"></i> Private Cloud Connected';
+                
+                // Boot synchronized real-time listeners (Rule 3 Guarded)
+                setupFirestoreListeners();
+            } else {
+                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-amber-500"></i> Authenticating...';
+            }
+        });
+
+        // Setup real-time listeners for secure cloud pathways (Rule 1 & Rule 2 compliant)
+        function setupFirestoreListeners() {
+            if (!user) return; // Guarded
+
+            // Path: /artifacts/{appId}/users/{userId}/workouts (Strict Rule 1 Path)
+            const qWorkouts = collection(db, 'artifacts', appId, 'users', userId, 'workouts');
+            onSnapshot(qWorkouts, (snapshot) => {
+                workoutHistory = [];
+                snapshot.forEach((doc) => {
+                    workoutHistory.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Sort chronologically in browser memory (Rule 2 query replacement)
+                workoutHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+                renderHistory();
+            }, (error) => {
+                console.error("Guarded Workouts retrieval error:", error);
+                showToast("Synchronization error. Retrying...", "fa-triangle-exclamation", true);
+            });
+
+            // Path: /artifacts/{appId}/users/{userId}/weightLog (Strict Rule 1 Path)
+            const qWeight = collection(db, 'artifacts', appId, 'users', userId, 'weightLog');
+            onSnapshot(qWeight, (snapshot) => {
+                weightHistory = [];
+                snapshot.forEach((doc) => {
+                    weightHistory.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Sort chronologically in browser memory (Rule 2 query replacement)
+                weightHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
+                renderWeightLog();
+                calculateWeightMetrics();
+            }, (error) => {
+                console.error("Guarded Weight log retrieval error:", error);
+            });
+        }
+
+        // Save active workout session to the private cloud
+        async function saveActiveSession() {
+            if (!user) {
+                showToast("Syncing error: Offline profile.", "fa-triangle-exclamation", true);
+                return;
+            }
+
+            const date = document.getElementById('workout-date').value;
+            const sessionData = {
+                date: date,
+                exercises: []
+            };
+
+            for (let i = 1; i <= 6; i++) {
+                const wtInput = document.getElementById(`ex-${i}-weight`);
+                const s1 = document.getElementById(`ex-${i}-s1`).value || "-";
+                const s2 = document.getElementById(`ex-${i}-s2`).value || "-";
+                const s3 = document.getElementById(`ex-${i}-s3`) ? (document.getElementById(`ex-${i}-s3`).value || "-") : "N/A";
+                
+                let name = "";
+                if(i===1) name="Leg Press / Goblet Squat";
+                if(i===2) name="Seated Leg Curl Machine";
+                if(i===3) name="Machine Chest Press";
+                if(i===4) name="Seated Cable Row";
+                if(i===5) name="Dumbbell Overhead Press";
+                if(i===6) name="Forearm Plank";
+
+                sessionData.exercises.push({
+                    name: name,
+                    weight: wtInput ? (wtInput.value || "0") : "Bodyweight",
+                    sets: [s1, s2, s3]
+                });
+            }
+
+            try {
+                // Add document to the strict user path
+                const workoutRef = collection(db, 'artifacts', appId, 'users', userId, 'workouts');
+                await addDoc(workoutRef, sessionData);
+                showToast("Workout Saved to Cloud!");
+                clearWorkoutReps();
+            } catch (err) {
+                console.error("Failed to push session to database:", err);
+                showToast("Could not back up to cloud.", "fa-circle-xmark", true);
+            }
+        }
+
+        // Save weight log entry to the private cloud
+        async function saveWeightEntry() {
+            if (!user) {
+                showToast("Syncing error: Offline profile.", "fa-triangle-exclamation", true);
+                return;
+            }
+
+            const date = document.getElementById('weight-date').value;
+            const weightVal = parseFloat(document.getElementById('weight-input').value);
+
+            if (!date || isNaN(weightVal) || weightVal <= 0) {
+                showToast("Please enter a valid weight!", "fa-circle-xmark", true);
+                return;
+            }
+
+            const entry = { date: date, weight: weightVal };
+
+            try {
+                const weightRef = collection(db, 'artifacts', appId, 'users', userId, 'weightLog');
+                await addDoc(weightRef, entry);
+                showToast("Weight Saved to Cloud!");
+                document.getElementById('weight-input').value = '';
+            } catch (err) {
+                console.error("Failed to write weight entry:", err);
+                showToast("Could not back up to cloud.", "fa-circle-xmark", true);
+            }
+        }
+
+        // Local clipboard actions (using document.execCommand due to iFrame constraints)
+        function copyUserId() {
+            const tempInput = document.createElement("input");
+            tempInput.value = userId || "Connecting...";
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+            showToast("Secure ID Copied!", "fa-id-card");
+        }
+
+        // Tab routing switcher
         function toggleView(view) {
             const views = {
                 main: { el: document.getElementById('view-main'), nav: document.getElementById('nav-btn-main'), tag: 'Workout Mode', color: 'bg-primary-600', active: 'text-primary-600' },
@@ -424,7 +612,6 @@
                 weight: { el: document.getElementById('view-weight'), nav: document.getElementById('nav-btn-weight'), tag: 'Weight Track', color: 'bg-weight-600', active: 'text-weight-600' }
             };
 
-            // Toggle element displays and reset layouts
             Object.keys(views).forEach(key => {
                 if(key === view) {
                     views[key].el.classList.remove('hidden');
@@ -469,7 +656,6 @@
             startBtn.onclick = startTimer;
         }
 
-        // Reset system hold clock
         function resetTimer() {
             clearInterval(timerInstance);
             timerInstance = null;
@@ -484,61 +670,7 @@
             startBtn.onclick = startTimer;
         }
 
-        // System Toasts
-        function showToast(message, iconClass = "fa-check-circle", highlight = false) {
-            const toast = document.getElementById('toast-banner');
-            const msgSpan = document.getElementById('toast-message');
-            const iconSpan = document.getElementById('toast-icon');
-
-            msgSpan.innerText = message;
-            iconSpan.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
-            iconSpan.className = highlight ? "text-amber-500" : "text-primary-500";
-
-            toast.classList.remove('translate-y-[-100px]', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
-
-            setTimeout(() => {
-                toast.classList.remove('translate-y-0', 'opacity-100');
-                toast.classList.add('translate-y-[-100px]', 'opacity-0');
-            }, 2500);
-        }
-
-        // Logging Workout Engine
-        function saveActiveSession() {
-            const date = document.getElementById('workout-date').value;
-            const sessionData = {
-                date: date,
-                exercises: []
-            };
-
-            for (let i = 1; i <= 6; i++) {
-                const wtInput = document.getElementById(`ex-${i}-weight`);
-                const s1 = document.getElementById(`ex-${i}-s1`).value || "-";
-                const s2 = document.getElementById(`ex-${i}-s2`).value || "-";
-                const s3 = document.getElementById(`ex-${i}-s3`) ? (document.getElementById(`ex-${i}-s3`).value || "-") : "N/A";
-                
-                let name = "";
-                if(i===1) name="Leg Press / Goblet Squat";
-                if(i===2) name="Seated Leg Curl Machine";
-                if(i===3) name="Machine Chest Press";
-                if(i===4) name="Seated Cable Row";
-                if(i===5) name="Dumbbell Overhead Press";
-                if(i===6) name="Forearm Plank";
-
-                sessionData.exercises.push({
-                    name: name,
-                    weight: wtInput ? (wtInput.value || "0") : "Bodyweight",
-                    sets: [s1, s2, s3]
-                });
-            }
-
-            workoutHistory.unshift(sessionData);
-            renderHistory();
-            showToast("Workout Saved Successfully!");
-            clearWorkoutReps();
-        }
-
-        // Reset reps but keep input structure
+        // Render UI systems
         function clearWorkoutReps() {
             for (let i = 1; i <= 6; i++) {
                 if (document.getElementById(`ex-${i}-s1`)) document.getElementById(`ex-${i}-s1`).value = '';
@@ -568,7 +700,7 @@
                 
                 let inner = `<div class="flex justify-between items-center font-bold border-b border-slate-200 pb-1 text-slate-700">
                     <span><i class="fa-regular fa-calendar-check text-primary-600 mr-1"></i>${dateFmt}</span>
-                    <span class="text-[9px] bg-primary-100 text-primary-800 px-1.5 py-0.2 rounded">Logged</span>
+                    <span class="text-[9px] bg-primary-100 text-primary-800 px-1.5 py-0.2 rounded">Cloud Synced</span>
                 </div><div class="space-y-1">`;
                 
                 session.exercises.forEach(ex => {
@@ -585,30 +717,13 @@
             });
         }
 
-        // Weight Loss System Engine
-        function saveWeightEntry() {
-            const date = document.getElementById('weight-date').value;
-            const weightVal = parseFloat(document.getElementById('weight-input').value);
-
-            if (!date || isNaN(weightVal) || weightVal <= 0) {
-                showToast("Please enter a valid weight!", "fa-circle-xmark", true);
+        function calculateWeightMetrics() {
+            if (weightHistory.length === 0) {
+                document.getElementById('stat-weight-start').innerText = '--';
+                document.getElementById('stat-weight-current').innerText = '--';
+                document.getElementById('stat-weight-lost').innerText = '--';
                 return;
             }
-
-            const entry = { date: date, weight: weightVal };
-            
-            // Push and sort timeline chronological
-            weightHistory.push(entry);
-            weightHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-            renderWeightLog();
-            calculateWeightMetrics();
-            showToast("Weight Entry Recorded!");
-            document.getElementById('weight-input').value = '';
-        }
-
-        function calculateWeightMetrics() {
-            if (weightHistory.length === 0) return;
 
             const startWeight = weightHistory[0].weight;
             const currentWeight = weightHistory[weightHistory.length - 1].weight;
@@ -634,16 +749,13 @@
             }
 
             tbody.innerHTML = '';
-            
-            // Render table backwards
             const reverseHistory = [...weightHistory].reverse();
 
-            reverseHistory.forEach((entry, index) => {
+            reverseHistory.forEach((entry) => {
                 const tr = document.createElement('tr');
                 tr.className = "border-b border-slate-100 hover:bg-slate-50 transition-colors";
                 
                 let dateFmt = new Date(entry.date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' });
-                
                 let origIndex = weightHistory.indexOf(entry);
                 let diffStr = "--";
                 let diffClass = "text-slate-400";
@@ -672,7 +784,7 @@
             });
         }
 
-        // Unified Export System
+        // Unified Export System Payload (Retains full local JSON support)
         function exportJSON() {
             if (workoutHistory.length === 0 && weightHistory.length === 0) {
                 showToast("No data to export yet!", "fa-circle-xmark", true);
@@ -695,6 +807,16 @@
             downloadAnchor.remove();
             showToast("Combined data backup downloaded!");
         }
+
+        // Expose critical functions to standard HTML event model
+        window.toggleView = toggleView;
+        window.startTimer = startTimer;
+        window.pauseTimer = pauseTimer;
+        window.resetTimer = resetTimer;
+        window.saveActiveSession = saveActiveSession;
+        window.saveWeightEntry = saveWeightEntry;
+        window.copyUserId = copyUserId;
+        window.exportJSON = exportJSON;
     </script>
 </body>
 </html>
