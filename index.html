@@ -351,12 +351,12 @@
 
 
             <div id="view-weight" class="hidden space-y-6">
-                <!-- Premium Cloud Sync Profile Card -->
+                <!-- Premium Cloud Sync Profile Card - Streamlined & Clutter-Free -->
                 <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white border border-slate-700 rounded-2xl p-4 shadow-md space-y-3.5">
                     <div class="flex justify-between items-center pb-2 border-b border-slate-700/60">
                         <h3 class="font-bold text-xs flex items-center gap-1.5 text-primary-400">
                             <i class="fa-solid fa-cloud-arrow-up text-sm"></i>
-                            <span>Cloud Profile Synchronization</span>
+                            <span>Profile Cloud Sync</span>
                         </h3>
                         <span id="sync-indicator" class="text-[9px] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full">
                             Synced
@@ -364,11 +364,11 @@
                     </div>
                     
                     <p class="text-[11px] text-slate-300 leading-relaxed">
-                        To access your private progress on multiple devices, bookmarks, or browser sessions, enter a memorable passcode below.
+                        Your workouts and weights save automatically to the cloud. Enter your passcode below on any device (like your phone) to sync your progress!
                     </p>
 
                     <div class="space-y-1.5">
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sync Passcode</label>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Passcode</label>
                         <div class="flex gap-2">
                             <input type="text" id="passcode-input" placeholder="e.g. strong-reichhardt-1234" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg py-1.5 px-3 text-xs font-mono font-bold text-slate-200 focus:ring-1 focus:ring-primary-500 focus:outline-none">
                             <button onclick="changePasscode()" class="px-3.5 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-bold transition-all shrink-0">
@@ -378,43 +378,12 @@
                     </div>
 
                     <div class="space-y-1.5 pt-1">
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Direct Profile Link</label>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Quick-Share Link</label>
                         <div class="flex gap-2">
                             <input type="text" id="share-link" readonly class="flex-1 bg-slate-950/60 border border-slate-800 rounded-lg py-1 px-2.5 text-[10px] font-mono text-slate-400 focus:outline-none" onclick="this.select()">
                             <button onclick="copyShareLink()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0">
                                 <i class="fa-regular fa-copy"></i> Copy
                             </button>
-                        </div>
-                    </div>
-
-                    <!-- Database Configuration Section (Setup for GitHub Pages / Self-Hosting) -->
-                    <div class="border-t border-slate-700/60 pt-3 mt-1">
-                        <button onclick="toggleDbConfig()" class="w-full text-left text-[10px] font-bold text-slate-400 hover:text-slate-300 flex justify-between items-center uppercase tracking-wider focus:outline-none">
-                            <span><i class="fa-solid fa-gears mr-1"></i> Database Settings (Self-Host)</span>
-                            <i id="db-config-caret" class="fa-solid fa-chevron-down transition-transform"></i>
-                        </button>
-                        <div id="db-config-panel" class="hidden mt-3 space-y-3 pt-1">
-                            <p class="text-[10px] text-slate-400 leading-normal">
-                                Paste your own free Firebase Configuration JSON to enable automated database storage outside the platform (e.g. on GitHub Pages).
-                            </p>
-                            <div class="space-y-1">
-                                <label class="block text-[9px] font-bold text-slate-400 uppercase">Firebase Config (JSON)</label>
-                                <textarea id="db-config-input" rows="3" placeholder='{ "apiKey": "AIza...", "authDomain": "...", "projectId": "...", ... }' class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-[10px] font-mono text-slate-300 focus:ring-1 focus:ring-primary-500 focus:outline-none"></textarea>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label class="block text-[9px] font-bold text-slate-400 uppercase mb-1">App ID</label>
-                                    <input type="text" id="db-appid-input" placeholder="my-fitness-app" class="w-full bg-slate-950 border border-slate-700 rounded-lg py-1.5 px-2.5 text-[10px] font-mono text-slate-300 focus:outline-none">
-                                </div>
-                                <div class="flex items-end gap-1.5">
-                                    <button onclick="saveCustomConfig()" class="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all">
-                                        Connect
-                                    </button>
-                                    <button onclick="clearCustomConfig()" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg text-xs transition-all" title="Reset to Sandbox">
-                                        <i class="fa-solid fa-trash-can"></i>
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -735,7 +704,7 @@
             });
         }
 
-        // Apply Native Swipe-Left gesture physics using modern PointerEvents (Robust on mobile AND desktop)
+        // Apply Native Swipe-Left gesture physics (Safe for both Touch screen and Mouse drag, mitigates default page bounces)
         function initSwipeToDelete(element, deleteBtnElement) {
             let startX = 0;
             let startY = 0;
@@ -744,53 +713,43 @@
             let isVerticalScroll = false;
             let isHorizontalSwipe = false;
 
-            // Set styling attributes to allow vertical scroll fallback and disable default horizontal page bounces
-            element.style.touchAction = 'pan-y';
-            element.style.userSelect = 'none';
+            element.style.touchAction = 'pan-y'; // standard vertical scrolling bypasses horizontal gestures
 
-            element.addEventListener('pointerdown', (e) => {
-                // Ignore secondary clicks from desktop mouse clicks (only track left click/finger tabs)
-                if (e.button !== 0 && e.pointerType === 'mouse') return;
-                
-                startX = e.clientX;
-                startY = e.clientY;
+            // TOUCH EVENTS CONFIGURATION (Crucial for iOS native swipe interception)
+            element.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
                 isDragging = true;
                 isVerticalScroll = false;
                 isHorizontalSwipe = false;
                 element.style.transition = 'none';
-                
-                // Track dragging pointer events globally beyond target container limits
-                element.setPointerCapture(e.pointerId);
-            });
+            }, { passive: true });
 
-            element.addEventListener('pointermove', (e) => {
+            element.addEventListener('touchmove', (e) => {
                 if (!isDragging) return;
                 
-                let currentX = e.clientX;
-                let currentY = e.clientY;
+                let currentX = e.touches[0].clientX;
+                let currentY = e.touches[0].clientY;
                 
                 let diffX = currentX - startX;
                 let diffY = Math.abs(currentY - startY);
 
-                // Lock gesture and cancel translate if swipe vectors indicate primarily vertical scrolling
                 if (isVerticalScroll) return;
 
                 if (!isHorizontalSwipe && !isVerticalScroll) {
-                    // Lock direction thresholds
-                    if (Math.abs(diffX) > 8 && Math.abs(diffX) > diffY) {
+                    if (Math.abs(diffX) > 10 && Math.abs(diffX) > diffY) {
                         isHorizontalSwipe = true;
-                    } else if (diffY > 8 && diffY > Math.abs(diffX)) {
+                    } else if (diffY > 10 && diffY > Math.abs(diffX)) {
                         isVerticalScroll = true;
                         isDragging = false;
-                        element.releasePointerCapture(e.pointerId);
                         element.style.transform = `translateX(${currentTranslate}px)`;
                         return;
                     }
                 }
 
                 if (isHorizontalSwipe) {
-                    // Prevent page bouncing/history navigation when horizontally sliding a card
-                    e.preventDefault();
+                    // Prevent page bouncing/history swipe navigation on mobile Safari
+                    if (e.cancelable) e.preventDefault();
 
                     let translate = currentTranslate + diffX;
                     if (translate < -100) translate = -100;
@@ -798,26 +757,23 @@
                     
                     element.style.transform = `translateX(${translate}px)`;
                     
-                    // Adjust red button visibility as swipe depth progresses
                     if (deleteBtnElement) {
                         let progress = Math.min(Math.abs(translate) / 80, 1);
                         deleteBtnElement.style.opacity = 0.4 + (progress * 0.6);
                     }
                 }
-            });
+            }, { passive: false }); // crucial to declare passive as false to allow iOS preventDefault()
 
-            element.addEventListener('pointerup', (e) => {
+            element.addEventListener('touchend', (e) => {
                 if (!isDragging) return;
                 isDragging = false;
-                element.releasePointerCapture(e.pointerId);
                 
-                let endX = e.clientX;
+                let endX = e.changedTouches[0].clientX;
                 let diffX = endX - startX;
                 
                 element.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
 
                 if (isHorizontalSwipe) {
-                    // Open threshold (reveal trash button if swiped left more than 35 pixels)
                     if (diffX < -30 || (currentTranslate === -80 && diffX < 30)) {
                         element.style.transform = 'translateX(-80px)';
                         currentTranslate = -80;
@@ -832,13 +788,77 @@
                 }
             });
 
-            element.addEventListener('pointercancel', (e) => {
-                if (!isDragging) return;
+            // MOUSE EVENTS FALLBACK (Optimized for desktop web-view testing)
+            let isMouseDown = false;
+            element.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                startX = e.clientX;
+                startY = e.clientY;
+                isMouseDown = true;
+                isDragging = true;
+                isVerticalScroll = false;
+                isHorizontalSwipe = false;
+                element.style.transition = 'none';
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isMouseDown || !isDragging) return;
+                
+                let currentX = e.clientX;
+                let currentY = e.clientY;
+                
+                let diffX = currentX - startX;
+                let diffY = Math.abs(currentY - startY);
+
+                if (isVerticalScroll) return;
+
+                if (!isHorizontalSwipe && !isVerticalScroll) {
+                    if (Math.abs(diffX) > 10 && Math.abs(diffX) > diffY) {
+                        isHorizontalSwipe = true;
+                    } else if (diffY > 10 && diffY > Math.abs(diffX)) {
+                        isVerticalScroll = true;
+                        isDragging = false;
+                        return;
+                    }
+                }
+
+                if (isHorizontalSwipe) {
+                    let translate = currentTranslate + diffX;
+                    if (translate < -100) translate = -100;
+                    if (translate > 0) translate = 0;
+                    
+                    element.style.transform = `translateX(${translate}px)`;
+                    
+                    if (deleteBtnElement) {
+                        let progress = Math.min(Math.abs(translate) / 80, 1);
+                        deleteBtnElement.style.opacity = 0.4 + (progress * 0.6);
+                    }
+                }
+            });
+
+            window.addEventListener('mouseup', (e) => {
+                if (!isMouseDown) return;
+                isMouseDown = false;
                 isDragging = false;
-                element.releasePointerCapture(e.pointerId);
+                
+                let endX = e.clientX;
+                let diffX = endX - startX;
+                
                 element.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
-                element.style.transform = `translateX(${currentTranslate}px)`;
-                if (deleteBtnElement) deleteBtnElement.style.opacity = currentTranslate === -80 ? '1' : '0.4';
+
+                if (isHorizontalSwipe) {
+                    if (diffX < -30 || (currentTranslate === -80 && diffX < 30)) {
+                        element.style.transform = 'translateX(-80px)';
+                        currentTranslate = -80;
+                        if (deleteBtnElement) deleteBtnElement.style.opacity = '1';
+                    } else {
+                        element.style.transform = 'translateX(0px)';
+                        currentTranslate = 0;
+                        if (deleteBtnElement) deleteBtnElement.style.opacity = '0.4';
+                    }
+                } else {
+                    element.style.transform = `translateX(${currentTranslate}px)`;
+                }
             });
         }
 
@@ -1077,6 +1097,7 @@
         let timerInstance = null;
         let timeLeft = 45.0;
 
+        // Start isometric count down
         function startTimer() {
             if (timerInstance) return;
             const startBtn = document.getElementById('btn-timer-start');
