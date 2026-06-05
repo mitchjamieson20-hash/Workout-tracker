@@ -50,6 +50,9 @@
         </div>
     </div>
 
+    <!-- Hidden file input for importing data backups -->
+    <input type="file" id="import-file-input" class="hidden" accept=".json" onchange="importJSON(event)">
+
     <!-- Main App Container -->
     <div class="flex-1 flex flex-col max-w-lg mx-auto w-full bg-white shadow-xl overflow-hidden relative border-x border-slate-200">
         
@@ -255,7 +258,7 @@
 
                 <button onclick="saveActiveSession()" class="w-full py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-bold shadow-md flex items-center justify-center space-x-2 transition-all">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
-                    <span>Save Workout to Cloud</span>
+                    <span>Save Workout & Cloud Sync</span>
                 </button>
 
                 <div class="border-t border-slate-100 pt-4">
@@ -320,6 +323,43 @@
 
 
             <div id="view-weight" class="hidden space-y-6">
+                <!-- Premium Cloud Sync Profile Card -->
+                <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white border border-slate-700 rounded-2xl p-4.5 shadow-md space-y-3.5">
+                    <div class="flex justify-between items-center pb-2 border-b border-slate-700/60">
+                        <h3 class="font-bold text-xs flex items-center gap-1.5 text-primary-400">
+                            <i class="fa-solid fa-cloud-arrow-up text-sm"></i>
+                            <span>Cloud Profile Synchronization</span>
+                        </h3>
+                        <span id="sync-indicator" class="text-[9px] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full">
+                            Synced
+                        </span>
+                    </div>
+                    
+                    <p class="text-[11px] text-slate-300 leading-relaxed">
+                        To access your private progress on multiple devices, bookmarks, or browser sessions, enter a memorable passcode below.
+                    </p>
+
+                    <div class="space-y-1.5">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sync Passcode</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="passcode-input" placeholder="e.g. strong-leichhardt-1234" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg py-1.5 px-3 text-xs font-mono font-bold text-slate-200 focus:ring-1 focus:ring-primary-500 focus:outline-none">
+                            <button onclick="changePasscode()" class="px-3.5 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-bold transition-all shrink-0">
+                                Link / Load
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5 pt-1">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Direct Profile Link</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="share-link" readonly class="flex-1 bg-slate-950/60 border border-slate-800 rounded-lg py-1 px-2.5 text-[10px] font-mono text-slate-400 focus:outline-none" onclick="this.select()">
+                            <button onclick="copyShareLink()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0">
+                                <i class="fa-regular fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-3 gap-2.5">
                     <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
                         <span class="block text-[10px] font-bold text-slate-400 uppercase">Start</span>
@@ -383,18 +423,20 @@
 
                 <!-- Account Security Identifier Block -->
                 <div class="border-t border-slate-100 pt-4">
-                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1">
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5">
                         <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5">
-                            <i class="fa-solid fa-user-lock text-slate-500"></i>
-                            <span>Private Account Verification</span>
+                            <i class="fa-solid fa-shield-halved text-slate-500"></i>
+                            <span>Offline Import & Data Transfer</span>
                         </h4>
                         <p class="text-[11px] text-slate-500 leading-relaxed">
-                            Your fitness profile is secure, fully encrypted, and visible only on your device. Use the unique ID below if transferring your account data.
+                            Have an offline backup `.json` file from a previous session? Select it below to restore your fitness profile.
                         </p>
-                        <div class="mt-2.5 bg-white border border-slate-200 rounded-lg p-2 flex items-center justify-between gap-2">
-                            <code id="user-id-display" class="text-[10px] font-mono font-bold text-slate-600 truncate flex-1">Securing connection...</code>
-                            <button onclick="copyUserId()" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold shrink-0 transition-colors flex items-center gap-1">
-                                <i class="fa-regular fa-copy"></i> Copy
+                        <div class="flex gap-2 pt-1">
+                            <button onclick="triggerImport()" class="flex-1 py-2 border border-dashed border-slate-300 hover:border-slate-400 bg-white text-slate-700 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-file-import text-slate-400"></i> Import JSON Backup
+                            </button>
+                            <button onclick="exportJSON()" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-file-export text-slate-500"></i> Export JSON Backup
                             </button>
                         </div>
                     </div>
@@ -436,13 +478,54 @@
         let weightHistory = [];
         let user = null;
         let userId = null;
+        let db = null;
+        let auth = null;
+        let appId = 'default-app-id';
+        let currentPasscode = '';
+        let unsubscribeDoc = null;
 
-        // Firebase Setup & Environment Injection (Rule 1 & Rule 3 priority Setup)
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // Firebase Configuration Safeguard to prevent local crashes on exported files
+        const configAvailable = typeof __firebase_config !== 'undefined' && __firebase_config;
+        if (configAvailable) {
+            try {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            } catch (e) {
+                console.error("Firebase setup error:", e);
+            }
+        }
+
+        // Cookie Helpers (Safe from standard localStorage restrictions)
+        function setCookie(name, value, days) {
+            const date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            document.cookie = `${name}=${value};expires=${date.toUTCString()};path=/`;
+        }
+
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        // Generate memorable codes for clean sharing (e.g. active-leichhardt-8321)
+        function generateRandomPasscode() {
+            const adjectives = ['active', 'strong', 'swift', 'bold', 'fit', 'focused', 'power', 'iron'];
+            const nouns = ['west', 'gym', 'leichhardt', 'balmain', 'rozelle', 'bay', 'cove'];
+            const num = Math.floor(1000 + Math.random() * 9000);
+            const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const noun = nouns[Math.floor(Math.random() * nouns.length)];
+            return `${adj}-${noun}-${num}`;
+        }
 
         // Connect Sync on load
         window.addEventListener('DOMContentLoaded', async () => {
@@ -450,82 +533,135 @@
             document.getElementById('workout-date').value = today;
             document.getElementById('weight-date').value = today;
 
+            // Establish active sync profile passcode
+            let profile = getQueryParam('profile');
+            if (!profile) profile = getCookie('fit_passcode');
+            if (!profile) profile = generateRandomPasscode();
+            currentPasscode = profile.trim().toLowerCase();
+
+            // Set up initial displays
+            renderHistory();
+            renderWeightLog();
+
             // Trigger secure authentication workflow
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
+            if (configAvailable && auth) {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (authErr) {
+                    console.error("Auth priority failure, backing up anonymously:", authErr);
+                    await signInAnonymously(auth).catch(e => {
+                        document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-exclamation text-rose-500"></i> Local mode (offline)';
+                        loadProfileWithPasscode(currentPasscode);
+                    });
                 }
-            } catch (authErr) {
-                console.error("Auth priority failure, backing up anonymously:", authErr);
-                await signInAnonymously(auth).catch(e => {
-                    document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-exclamation text-rose-500"></i> Offline mode';
-                });
-            }
-        });
-
-        // Auth state monitor
-        onAuthStateChanged(auth, (currentUser) => {
-            if (currentUser) {
-                user = currentUser;
-                userId = currentUser.uid;
-                
-                // Expose complete user ID to interface
-                document.getElementById('user-id-display').innerText = userId;
-                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-check text-primary-500"></i> Private Cloud Connected';
-                
-                // Boot synchronized real-time listeners (Rule 3 Guarded)
-                setupFirestoreListeners();
             } else {
-                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-amber-500"></i> Authenticating...';
+                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-info text-amber-500"></i> Local Sandbox Mode';
+                document.getElementById('sync-indicator').innerText = 'Offline';
+                document.getElementById('sync-indicator').className = 'text-[9px] font-bold bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full';
+                loadProfileWithPasscode(currentPasscode);
             }
         });
 
-        // Setup real-time listeners for secure cloud pathways (Rule 1 & Rule 2 compliant)
-        function setupFirestoreListeners() {
-            if (!user) return; // Guarded
-
-            // Path: /artifacts/{appId}/users/{userId}/workouts (Strict Rule 1 Path)
-            const qWorkouts = collection(db, 'artifacts', appId, 'users', userId, 'workouts');
-            onSnapshot(qWorkouts, (snapshot) => {
-                workoutHistory = [];
-                snapshot.forEach((doc) => {
-                    workoutHistory.push({ id: doc.id, ...doc.data() });
-                });
-                
-                // Sort chronologically in browser memory (Rule 2 query replacement)
-                workoutHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
-                renderHistory();
-            }, (error) => {
-                console.error("Guarded Workouts retrieval error:", error);
-                showToast("Synchronization error. Retrying...", "fa-triangle-exclamation", true);
-            });
-
-            // Path: /artifacts/{appId}/users/{userId}/weightLog (Strict Rule 1 Path)
-            const qWeight = collection(db, 'artifacts', appId, 'users', userId, 'weightLog');
-            onSnapshot(qWeight, (snapshot) => {
-                weightHistory = [];
-                snapshot.forEach((doc) => {
-                    weightHistory.push({ id: doc.id, ...doc.data() });
-                });
-
-                // Sort chronologically in browser memory (Rule 2 query replacement)
-                weightHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
-                renderWeightLog();
-                calculateWeightMetrics();
-            }, (error) => {
-                console.error("Guarded Weight log retrieval error:", error);
+        // Auth state monitor (Rule 3 Guardrail)
+        if (configAvailable && auth) {
+            onAuthStateChanged(auth, (currentUser) => {
+                if (currentUser) {
+                    user = currentUser;
+                    userId = currentUser.uid;
+                    loadProfileWithPasscode(currentPasscode);
+                } else {
+                    document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-amber-500"></i> Authenticating...';
+                }
             });
         }
 
-        // Save active workout session to the private cloud
-        async function saveActiveSession() {
-            if (!user) {
-                showToast("Syncing error: Offline profile.", "fa-triangle-exclamation", true);
-                return;
+        // Active Load Sync Engine (Compliant with Rule 1 Public Pathways)
+        async function loadProfileWithPasscode(passcode) {
+            if (!passcode) return;
+            currentPasscode = passcode.trim().toLowerCase();
+            setCookie('fit_passcode', currentPasscode, 365);
+
+            // Update user forms
+            document.getElementById('passcode-input').value = currentPasscode;
+            document.getElementById('share-link').value = window.location.origin + window.location.pathname + '?profile=' + currentPasscode;
+
+            if (!configAvailable || !user || !db) {
+                return; // Fallback to offline mode
             }
 
+            if (unsubscribeDoc) unsubscribeDoc();
+
+            document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-amber-500"></i> Syncing cloud profile...';
+
+            // Path: /artifacts/{appId}/public/data/userProfiles/{passcode} (Strict Rule 1 Path)
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'userProfiles', currentPasscode);
+            
+            unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    workoutHistory = data.workouts || [];
+                    weightHistory = data.weightLog || [];
+                } else {
+                    workoutHistory = [];
+                    weightHistory = [];
+                }
+                renderHistory();
+                renderWeightLog();
+                calculateWeightMetrics();
+                
+                document.getElementById('sync-status').innerHTML = `<i class="fa-solid fa-cloud text-primary-500"></i> Synced: ${currentPasscode}`;
+                document.getElementById('sync-indicator').innerText = 'Active';
+                document.getElementById('sync-indicator').className = 'text-[9px] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full';
+            }, (error) => {
+                console.error("Firestore loading error:", error);
+                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-exclamation text-rose-500"></i> Sync Error';
+            });
+        }
+
+        // Change Profile Action
+        function changePasscode() {
+            const val = document.getElementById('passcode-input').value.trim().toLowerCase();
+            if (!val) {
+                showToast("Please enter a valid passcode!", "fa-triangle-exclamation", true);
+                return;
+            }
+            loadProfileWithPasscode(val);
+            showToast(`Loaded Profile: ${val}`);
+        }
+
+        // Copy direct link helper
+        function copyShareLink() {
+            const shareInput = document.getElementById('share-link');
+            shareInput.select();
+            document.execCommand('copy');
+            showToast("Direct profile link copied to clipboard!", "fa-share-nodes");
+        }
+
+        // Synchronize Active State to Database Document (Strict Rule 1 Path)
+        async function syncDataToCloud() {
+            if (!configAvailable || !user || !db) {
+                showToast("Saved locally.", "fa-circle-check");
+                return;
+            }
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'userProfiles', currentPasscode);
+                await setDoc(docRef, {
+                    workouts: workoutHistory,
+                    weightLog: weightHistory,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+            } catch (err) {
+                console.error("Database write error:", err);
+                showToast("Failed cloud synchronisation.", "fa-circle-xmark", true);
+            }
+        }
+
+        // Save active workout session
+        async function saveActiveSession() {
             const date = document.getElementById('workout-date').value;
             const sessionData = {
                 date: date,
@@ -553,25 +689,18 @@
                 });
             }
 
-            try {
-                // Add document to the strict user path
-                const workoutRef = collection(db, 'artifacts', appId, 'users', userId, 'workouts');
-                await addDoc(workoutRef, sessionData);
-                showToast("Workout Saved to Cloud!");
-                clearWorkoutReps();
-            } catch (err) {
-                console.error("Failed to push session to database:", err);
-                showToast("Could not back up to cloud.", "fa-circle-xmark", true);
-            }
+            // Local state first
+            workoutHistory.unshift(sessionData);
+            renderHistory();
+
+            // Fire and forget cloud sync
+            await syncDataToCloud();
+            showToast("Workout Saved!");
+            clearWorkoutReps();
         }
 
-        // Save weight log entry to the private cloud
+        // Save weight log entry
         async function saveWeightEntry() {
-            if (!user) {
-                showToast("Syncing error: Offline profile.", "fa-triangle-exclamation", true);
-                return;
-            }
-
             const date = document.getElementById('weight-date').value;
             const weightVal = parseFloat(document.getElementById('weight-input').value);
 
@@ -581,27 +710,51 @@
             }
 
             const entry = { date: date, weight: weightVal };
+            weightHistory.push(entry);
+            weightHistory.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-            try {
-                const weightRef = collection(db, 'artifacts', appId, 'users', userId, 'weightLog');
-                await addDoc(weightRef, entry);
-                showToast("Weight Saved to Cloud!");
-                document.getElementById('weight-input').value = '';
-            } catch (err) {
-                console.error("Failed to write weight entry:", err);
-                showToast("Could not back up to cloud.", "fa-circle-xmark", true);
-            }
+            renderWeightLog();
+            calculateWeightMetrics();
+
+            await syncDataToCloud();
+            showToast("Weight Saved!");
+            document.getElementById('weight-input').value = '';
         }
 
-        // Local clipboard actions (using document.execCommand due to iFrame constraints)
-        function copyUserId() {
-            const tempInput = document.createElement("input");
-            tempInput.value = userId || "Connecting...";
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand("copy");
-            document.body.removeChild(tempInput);
-            showToast("Secure ID Copied!", "fa-id-card");
+        // Trigger Hidden File Upload Form
+        function triggerImport() {
+            document.getElementById('import-file-input').click();
+        }
+
+        // Process and Parse Local JSON File Backups
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.workouts || data.weightLog) {
+                        workoutHistory = data.workouts || [];
+                        weightHistory = data.weightLog || [];
+                        
+                        renderHistory();
+                        renderWeightLog();
+                        calculateWeightMetrics();
+                        
+                        // Push new dataset to cloud
+                        await syncDataToCloud();
+                        showToast("Data Backup Restored Successfully!");
+                    } else {
+                        showToast("Invalid data structure.", "fa-circle-xmark", true);
+                    }
+                } catch (err) {
+                    console.error("Backup import parse error:", err);
+                    showToast("Failed to parse backup JSON file.", "fa-circle-xmark", true);
+                }
+            };
+            reader.readAsText(file);
         }
 
         // Tab routing switcher
@@ -681,16 +834,17 @@
 
         function renderHistory() {
             const container = document.getElementById('history-container');
+            if (!container) return;
             const emptyState = document.getElementById('history-empty');
 
             if (workoutHistory.length === 0) {
-                emptyState.classList.remove('hidden');
+                if (emptyState) emptyState.classList.remove('hidden');
                 container.innerHTML = '';
-                container.appendChild(emptyState);
+                if (emptyState) container.appendChild(emptyState);
                 return;
             }
 
-            emptyState.classList.add('hidden');
+            if (emptyState) emptyState.classList.add('hidden');
             container.innerHTML = '';
 
             workoutHistory.forEach(session => {
@@ -700,7 +854,7 @@
                 
                 let inner = `<div class="flex justify-between items-center font-bold border-b border-slate-200 pb-1 text-slate-700">
                     <span><i class="fa-regular fa-calendar-check text-primary-600 mr-1"></i>${dateFmt}</span>
-                    <span class="text-[9px] bg-primary-100 text-primary-800 px-1.5 py-0.2 rounded">Cloud Synced</span>
+                    <span class="text-[9px] bg-primary-100 text-primary-800 px-1.5 py-0.2 rounded">${configAvailable ? 'Cloud Synced' : 'Offline Mode'}</span>
                 </div><div class="space-y-1">`;
                 
                 session.exercises.forEach(ex => {
@@ -718,10 +872,16 @@
         }
 
         function calculateWeightMetrics() {
+            const startEl = document.getElementById('stat-weight-start');
+            const currEl = document.getElementById('stat-weight-current');
+            const lostEl = document.getElementById('stat-weight-lost');
+
+            if (!startEl || !currEl || !lostEl) return;
+
             if (weightHistory.length === 0) {
-                document.getElementById('stat-weight-start').innerText = '--';
-                document.getElementById('stat-weight-current').innerText = '--';
-                document.getElementById('stat-weight-lost').innerText = '--';
+                startEl.innerText = '--';
+                currEl.innerText = '--';
+                lostEl.innerText = '--';
                 return;
             }
 
@@ -729,19 +889,20 @@
             const currentWeight = weightHistory[weightHistory.length - 1].weight;
             const lost = startWeight - currentWeight;
 
-            document.getElementById('stat-weight-start').innerText = startWeight.toFixed(1);
-            document.getElementById('stat-weight-current').innerText = currentWeight.toFixed(1);
-            document.getElementById('stat-weight-lost').innerText = lost >= 0 ? lost.toFixed(1) : (lost * -1).toFixed(1) + ' (Gain)';
+            startEl.innerText = startWeight.toFixed(1);
+            currEl.innerText = currentWeight.toFixed(1);
+            lostEl.innerText = lost >= 0 ? lost.toFixed(1) : (lost * -1).toFixed(1) + ' (Gain)';
             
             if (lost < 0) {
-                document.getElementById('stat-weight-lost').className = "text-lg font-black text-amber-600";
+                lostEl.className = "text-lg font-black text-amber-600";
             } else {
-                document.getElementById('stat-weight-lost').className = "text-lg font-black text-primary-700";
+                lostEl.className = "text-lg font-black text-primary-700";
             }
         }
 
         function renderWeightLog() {
             const tbody = document.getElementById('weight-table-body');
+            if (!tbody) return;
             
             if (weightHistory.length === 0) {
                 tbody.innerHTML = `<tr id="weight-empty"><td colspan="3" class="text-center py-6 text-slate-400 font-medium">No weight entries logged yet.</td></tr>`;
@@ -784,7 +945,7 @@
             });
         }
 
-        // Unified Export System Payload (Retains full local JSON support)
+        // Unified Export System Payload (Local JSON support)
         function exportJSON() {
             if (workoutHistory.length === 0 && weightHistory.length === 0) {
                 showToast("No data to export yet!", "fa-circle-xmark", true);
@@ -793,7 +954,6 @@
             
             const universalExportPayload = {
                 exportedAt: new Date().toISOString(),
-                locationFilter: "Postcode 2040",
                 workouts: workoutHistory,
                 weightLog: weightHistory
             };
@@ -805,7 +965,27 @@
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
-            showToast("Combined data backup downloaded!");
+            showToast("Backup downloaded!");
+        }
+
+        // Local alerts
+        function showToast(message, iconClass = "fa-check-circle", highlight = false) {
+            const toast = document.getElementById('toast-banner');
+            if (!toast) return;
+            const msgSpan = document.getElementById('toast-message');
+            const iconSpan = document.getElementById('toast-icon');
+
+            msgSpan.innerText = message;
+            iconSpan.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+            iconSpan.className = highlight ? "text-amber-500" : "text-primary-500";
+
+            toast.classList.remove('translate-y-[-100px]', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-[-100px]', 'opacity-0');
+            }, 2500);
         }
 
         // Expose critical functions to standard HTML event model
@@ -815,7 +995,10 @@
         window.resetTimer = resetTimer;
         window.saveActiveSession = saveActiveSession;
         window.saveWeightEntry = saveWeightEntry;
-        window.copyUserId = copyUserId;
+        window.changePasscode = changePasscode;
+        window.copyShareLink = copyShareLink;
+        window.triggerImport = triggerImport;
+        window.importJSON = importJSON;
         window.exportJSON = exportJSON;
     </script>
 </body>
