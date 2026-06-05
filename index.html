@@ -105,6 +105,14 @@
                     </div>
                 </div>
 
+                <!-- Auth Configuration Notice Banner (Displays when Auth has not been enabled in Firebase console) -->
+                <div id="auth-warning-banner" class="hidden text-[10px] bg-sky-50 border border-sky-200 text-sky-900 rounded-lg p-2.5 flex items-start gap-2">
+                    <i class="fa-solid fa-circle-info text-sky-600 mt-0.5 animate-pulse"></i>
+                    <div>
+                        <strong>Database Synced (No Authentication):</strong> Your logs are saving to the cloud! However, to secure your sync pipeline, please go to **Authentication -> Sign-in method** in your Firebase console and enable the **Anonymous** sign-in provider.
+                    </div>
+                </div>
+
                 <!-- Exercise List -->
                 <div id="exercise-container" class="space-y-4">
                     <!-- Exercise 1 -->
@@ -367,7 +375,7 @@
                         </div>
                     </div>
 
-                    <!-- Database Configuration Section (NEW: Setup for GitHub Pages / Self-Hosting) -->
+                    <!-- Database Configuration Section (Setup for GitHub Pages / Self-Hosting) -->
                     <div class="border-t border-slate-700/60 pt-3 mt-1">
                         <button onclick="toggleDbConfig()" class="w-full text-left text-[10px] font-bold text-slate-400 hover:text-slate-300 flex justify-between items-center uppercase tracking-wider focus:outline-none">
                             <span><i class="fa-solid fa-gears mr-1"></i> Database Settings (Self-Host)</span>
@@ -523,6 +531,24 @@
         let currentPasscode = '';
         let unsubscribeDoc = null;
 
+        // =========================================================================
+        // OPTION B: HARDCODED FIREBASE DATABASE KEYS CONFIGURATION
+        // =========================================================================
+        // 1. Copy your config block from your web app registration page in Firebase.
+        // 2. Paste the key-values below inside the MY_FIREBASE_CONFIG object.
+        // 3. Set USE_HARDCODED_CONFIG to true.
+        const USE_HARDCODED_CONFIG = true; 
+        const MY_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyA0MGz9o8QsUyL1NxiGSJAhojlEJvS4UEo",
+            authDomain: "workout-plan-65b21.firebaseapp.com",
+            projectId: "workout-plan-65b21",
+            storageBucket: "workout-plan-65b21.firebasestorage.app",
+            messagingSenderId: "874161937850",
+            appId: "1:874161937850:web:d08dcb3d1227de12645183"
+        };
+        const MY_HARDCODED_APP_ID = "workout-plan-65b21";
+        // =========================================================================
+
         // Cookie Helpers (Safe from standard localStorage restrictions)
         function setCookie(name, value, days) {
             const date = new Date();
@@ -552,12 +578,18 @@
             return `${adj}-${noun}-${num}`;
         }
 
-        // Firebase Configuration Safeguard to support platform AND self-hosted deployments
+        // Firebase Configuration Safeguard to support platform, hardcoded (Option B), and self-hosted deployments
         let firebaseConfig = null;
         let configAvailable = false;
 
-        // 1. First prioritise injected platform config (if inside platform iframe environment)
-        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+        // 1. Check priority Option B config (First choice)
+        if (USE_HARDCODED_CONFIG && MY_FIREBASE_CONFIG && MY_FIREBASE_CONFIG.apiKey !== "PASTE_API_KEY_HERE") {
+            firebaseConfig = MY_FIREBASE_CONFIG;
+            appId = MY_HARDCODED_APP_ID;
+            configAvailable = true;
+        }
+        // 2. Check platform config (Standard workspace connection)
+        else if (typeof __firebase_config !== 'undefined' && __firebase_config) {
             try {
                 if (typeof __firebase_config === 'string') {
                     firebaseConfig = JSON.parse(__firebase_config);
@@ -570,9 +602,8 @@
                 console.error("Failed to parse injected __firebase_config:", e);
             }
         }
-
-        // 2. Fall back to user-configured custom config in cookies (for self-hosting/GitHub Pages)
-        if (!configAvailable) {
+        // 3. Fall back to user-configured custom config in cookies (Manual UI Settings)
+        else {
             const customConfigStr = getCookie('custom_firebase_config');
             if (customConfigStr) {
                 try {
@@ -628,11 +659,14 @@
                         await signInAnonymously(auth);
                     }
                 } catch (authErr) {
-                    console.error("Auth priority failure, backing up anonymously:", authErr);
-                    await signInAnonymously(auth).catch(e => {
-                        document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-exclamation text-rose-500"></i> Local mode (offline)';
-                        loadProfileWithPasscode(currentPasscode);
-                    });
+                    console.warn("Auth priority failure, proceeding with unauthenticated sync:", authErr);
+                    // Fallback: Proceed with unauthenticated sync since Firestore in test mode allows it
+                    document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-cloud text-primary-500"></i> Synced: ' + currentPasscode;
+                    
+                    const authBanner = document.getElementById('auth-warning-banner');
+                    if (authBanner) authBanner.classList.remove('hidden');
+                    
+                    loadProfileWithPasscode(currentPasscode);
                 }
             } else {
                 document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle-info text-amber-500"></i> Local Sandbox Mode';
@@ -665,7 +699,7 @@
             document.getElementById('passcode-input').value = currentPasscode;
             document.getElementById('share-link').value = window.location.origin + window.location.pathname + '?profile=' + currentPasscode;
 
-            if (!configAvailable || !user || !db) {
+            if (!configAvailable || !db) {
                 return; // Fallback to offline mode
             }
 
@@ -777,7 +811,7 @@
 
         // Synchronize Active State to Database Document (Strict Rule 1 Path)
         async function syncDataToCloud() {
-            if (!configAvailable || !user || !db) {
+            if (!configAvailable || !db) {
                 showToast("Saved locally.", "fa-circle-check");
                 return;
             }
@@ -951,6 +985,7 @@
             resetTimerBtn();
         }
 
+        // Reset system hold clock
         function resetTimerBtn() {
             const startBtn = document.getElementById('btn-timer-start');
             startBtn.innerHTML = '<i class="fa-solid fa-play"></i> Start Hold';
