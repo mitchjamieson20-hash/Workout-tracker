@@ -39,6 +39,13 @@
             }
         }
     </script>
+    <style>
+        /* Enable text selection inside input fields while select-none is on the body */
+        input, textarea, select {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+        }
+    </style>
 </head>
 <body class="h-full flex flex-col text-slate-800 select-none">
 
@@ -92,7 +99,7 @@
                 <div class="bg-slate-100 p-3 rounded-xl flex justify-between items-center">
                     <div class="flex items-center gap-2">
                         <i class="fa-regular fa-calendar text-slate-500"></i>
-                        <input type="date" id="workout-date" class="bg-transparent font-semibold text-sm border-none focus:outline-none focus:ring-0 text-slate-700" />
+                        <input type="date" id="workout-date" class="bg-transparent font-semibold text-sm border-none focus:outline-none focus:ring-0 text-slate-700 font-sans" />
                     </div>
                     <span class="text-xs font-semibold text-slate-500 bg-white px-2.5 py-1 rounded-full shadow-sm">45-60 min</span>
                 </div>
@@ -735,6 +742,7 @@
             let currentTranslate = 0;
             let isDragging = false;
             let isVerticalScroll = false;
+            let isHorizontalSwipe = false;
 
             // Set styling attributes to allow vertical scroll fallback and disable default horizontal page bounces
             element.style.touchAction = 'pan-y';
@@ -748,6 +756,7 @@
                 startY = e.clientY;
                 isDragging = true;
                 isVerticalScroll = false;
+                isHorizontalSwipe = false;
                 element.style.transition = 'none';
                 
                 // Track dragging pointer events globally beyond target container limits
@@ -764,26 +773,36 @@
                 let diffY = Math.abs(currentY - startY);
 
                 // Lock gesture and cancel translate if swipe vectors indicate primarily vertical scrolling
-                if (Math.abs(diffX) < diffY && !isVerticalScroll) {
-                    isVerticalScroll = true;
-                    isDragging = false;
-                    element.style.transform = `translateX(${currentTranslate}px)`;
-                    return;
-                }
-
                 if (isVerticalScroll) return;
 
-                // Bind horizontal limits (restrict leftward swipe up to -100px, prevent sliding right past start)
-                let translate = currentTranslate + diffX;
-                if (translate < -100) translate = -100;
-                if (translate > 0) translate = 0;
-                
-                element.style.transform = `translateX(${translate}px)`;
-                
-                // Adjust red button visibility as swipe depth progresses
-                if (deleteBtnElement) {
-                    let progress = Math.min(Math.abs(translate) / 80, 1);
-                    deleteBtnElement.style.opacity = 0.4 + (progress * 0.6);
+                if (!isHorizontalSwipe && !isVerticalScroll) {
+                    // Lock direction thresholds
+                    if (Math.abs(diffX) > 8 && Math.abs(diffX) > diffY) {
+                        isHorizontalSwipe = true;
+                    } else if (diffY > 8 && diffY > Math.abs(diffX)) {
+                        isVerticalScroll = true;
+                        isDragging = false;
+                        element.releasePointerCapture(e.pointerId);
+                        element.style.transform = `translateX(${currentTranslate}px)`;
+                        return;
+                    }
+                }
+
+                if (isHorizontalSwipe) {
+                    // Prevent page bouncing/history navigation when horizontally sliding a card
+                    e.preventDefault();
+
+                    let translate = currentTranslate + diffX;
+                    if (translate < -100) translate = -100;
+                    if (translate > 0) translate = 0;
+                    
+                    element.style.transform = `translateX(${translate}px)`;
+                    
+                    // Adjust red button visibility as swipe depth progresses
+                    if (deleteBtnElement) {
+                        let progress = Math.min(Math.abs(translate) / 80, 1);
+                        deleteBtnElement.style.opacity = 0.4 + (progress * 0.6);
+                    }
                 }
             });
 
@@ -797,25 +816,29 @@
                 
                 element.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
 
-                // Open threshold (reveal trash button if swiped left more than 35 pixels)
-                if (diffX < -35 || (currentTranslate === -80 && diffX < 20)) {
-                    element.style.transform = 'translateX(-80px)';
-                    currentTranslate = -80;
-                    if (deleteBtnElement) deleteBtnElement.style.opacity = '1';
+                if (isHorizontalSwipe) {
+                    // Open threshold (reveal trash button if swiped left more than 35 pixels)
+                    if (diffX < -30 || (currentTranslate === -80 && diffX < 30)) {
+                        element.style.transform = 'translateX(-80px)';
+                        currentTranslate = -80;
+                        if (deleteBtnElement) deleteBtnElement.style.opacity = '1';
+                    } else {
+                        element.style.transform = 'translateX(0px)';
+                        currentTranslate = 0;
+                        if (deleteBtnElement) deleteBtnElement.style.opacity = '0.4';
+                    }
                 } else {
-                    element.style.transform = 'translateX(0px)';
-                    currentTranslate = 0;
-                    if (deleteBtnElement) deleteBtnElement.style.opacity = '0.4';
+                    element.style.transform = `translateX(${currentTranslate}px)`;
                 }
             });
 
             element.addEventListener('pointercancel', (e) => {
                 if (!isDragging) return;
                 isDragging = false;
+                element.releasePointerCapture(e.pointerId);
                 element.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
-                element.style.transform = 'translateX(0px)';
-                currentTranslate = 0;
-                if (deleteBtnElement) deleteBtnElement.style.opacity = '0.4';
+                element.style.transform = `translateX(${currentTranslate}px)`;
+                if (deleteBtnElement) deleteBtnElement.style.opacity = currentTranslate === -80 ? '1' : '0.4';
             });
         }
 
@@ -1073,6 +1096,7 @@
             }, 100);
         }
 
+        // Pause isometric hold count
         function pauseTimer() {
             clearInterval(timerInstance);
             timerInstance = null;
@@ -1089,7 +1113,6 @@
             resetTimerBtn();
         }
 
-        // Reset system hold clock
         function resetTimerBtn() {
             const startBtn = document.getElementById('btn-timer-start');
             startBtn.innerHTML = '<i class="fa-solid fa-play"></i> Start Hold';
@@ -1132,20 +1155,26 @@
                         <span>Delete</span>
                     </button>
                     <!-- Foreground swipe layer -->
-                    <div id="swipe-wk-${index}" class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2 relative z-10 transition-transform duration-200 ease-out shadow-sm select-none">
-                        <div class="flex justify-between items-center font-bold border-b border-slate-200 pb-1 text-slate-700">
-                            <span><i class="fa-regular fa-calendar-check text-primary-600 mr-1"></i>${new Date(session.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                            <span class="text-[9px] bg-primary-100 text-primary-800 px-1.5 py-0.2 rounded">${configAvailable ? 'Cloud Synced' : 'Offline Mode'}</span>
+                    <div id="swipe-wk-${index}" class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2 relative z-10 transition-transform duration-200 ease-out shadow-sm select-none flex justify-between items-center pr-3">
+                        <div class="flex-1 space-y-2">
+                            <div class="flex justify-between items-center font-bold border-b border-slate-200 pb-1 text-slate-700 mr-2">
+                                <span><i class="fa-regular fa-calendar-check text-primary-600 mr-1"></i>${new Date(session.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                                <span class="text-[9px] bg-primary-100 text-primary-800 px-1.5 py-0.2 rounded">${configAvailable ? 'Cloud Synced' : 'Offline Mode'}</span>
+                            </div>
+                            <div class="space-y-1 pr-2">
+                                ${session.exercises.map(ex => {
+                                    let setStr = ex.sets.filter(s => s !== "N/A" && s !== "").join(" / ");
+                                    let wtStr = ex.weight !== "Bodyweight" ? `${ex.weight}kg` : ex.weight;
+                                    return `<div class="flex justify-between text-slate-600">
+                                        <span>${ex.name}</span>
+                                        <span class="font-mono font-bold text-slate-800">${wtStr} • [ ${setStr} ]</span>
+                                    </div>`;
+                                }).join('')}
+                            </div>
                         </div>
-                        <div class="space-y-1">
-                            ${session.exercises.map(ex => {
-                                let setStr = ex.sets.filter(s => s !== "N/A" && s !== "").join(" / ");
-                                let wtStr = ex.weight !== "Bodyweight" ? `${ex.weight}kg` : ex.weight;
-                                return `<div class="flex justify-between text-slate-600">
-                                    <span>${ex.name}</span>
-                                    <span class="font-mono font-bold text-slate-800">${wtStr} • [ ${setStr} ]</span>
-                                </div>`;
-                            }).join('')}
+                        <!-- Micro subtle chevron drag indicator -->
+                        <div class="text-slate-300 pl-1">
+                            <i class="fa-solid fa-chevron-left text-[10px]"></i>
                         </div>
                     </div>
                 `;
@@ -1235,8 +1264,8 @@
                         <span>Delete</span>
                     </button>
                     <!-- Foreground swipe layer -->
-                    <div id="swipe-wt-${origIndex}" class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs flex justify-between items-center relative z-10 transition-transform duration-200 ease-out select-none">
-                        <div class="flex items-center gap-3">
+                    <div id="swipe-wt-${origIndex}" class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs flex justify-between items-center relative z-10 transition-transform duration-200 ease-out select-none pr-3">
+                        <div class="flex items-center gap-3 flex-1">
                             <div class="bg-weight-50 text-weight-600 p-2 rounded-lg font-bold text-center shrink-0 min-w-[50px]">
                                 <span class="block text-[8px] uppercase tracking-wider text-slate-400">Weight</span>
                                 <span class="text-sm font-black">${entry.weight.toFixed(1)}</span><span class="text-[9px] font-medium text-slate-500">kg</span>
@@ -1246,9 +1275,15 @@
                                 <span class="text-[10px] text-slate-400 font-mono">Profile Log</span>
                             </div>
                         </div>
-                        <div class="text-right">
-                            <span class="block text-[9px] font-bold uppercase tracking-wider text-slate-400">Trend</span>
-                            <span class="${diffClass} font-mono font-bold text-sm">${diffStr}</span>
+                        <div class="text-right flex items-center gap-3">
+                            <div>
+                                <span class="block text-[9px] font-bold uppercase tracking-wider text-slate-400">Trend</span>
+                                <span class="${diffClass} font-mono font-bold text-sm">${diffStr}</span>
+                            </div>
+                            <!-- Micro subtle chevron drag indicator -->
+                            <div class="text-slate-300 pl-1">
+                                <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                            </div>
                         </div>
                     </div>
                 `;
